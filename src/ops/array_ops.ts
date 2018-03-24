@@ -899,6 +899,72 @@ export class ArrayOps {
     const expandedTensors = tensors.map(t => t.expandDims(axis));
     return ConcatOps.concat(expandedTensors, axis);
   }
+  ///
+  /**
+   * Pads a `Tensor1D` with a given value and paddings. See `pad` for details.
+   */
+  static randomShuffle1d(x: Tensor1D, seed: number = null): Tensor1D {
+    util.assert(x.rank === 1, `Error in randomShuffle1D: x must be rank
+        1 but got rank ${x.rank}.`);
+    return ArrayOps.randomShuffle(x, seed);
+  }
+
+  /**
+   * Pads a `Tensor2D` with a given value and paddings. See `pad` for details.
+   */
+  static randomShuffle2d(x: Tensor2D, seed: number = null): Tensor2D {
+    util.assert(x.rank === 2, `Error in randomShuffle2D: x must be rank
+        2 but got rank ${x.rank}.`);
+    return ArrayOps.randomShuffle(x, seed);
+  }
+
+  /**
+   * Pads a `Tensor3D` with a given value and paddings. See `pad` for details.
+   */
+  static randomShuffle3d(x: Tensor3D, seed: number = null): Tensor3D {
+    util.assert(x.rank === 3, `Error in randomShuffle3D: x must be rank
+        3 but got rank ${x.rank}.`);
+    return ArrayOps.randomShuffle(x, seed);
+  }
+
+  /**
+   * Pads a `Tensor4D` with a given value and paddings. See `pad` for details.
+   */
+  static randomShuffle4d(x: Tensor4D, seed: number = null): Tensor4D {
+    util.assert(x.rank === 4, `Error in randomShuffle4D: x must be rank
+        4 but got rank ${x.rank}.`);
+    return ArrayOps.randomShuffle(x, seed);
+  }
+
+  /**
+   * Pads a `Tensor` with a given value and paddings.
+   *
+   * This operation currently only implements the `CONSTANT` mode from
+   * Tensorflow's `pad` operation.
+   *
+   * ```js
+   * const x = dl.tensor1d([1, 2, 3, 4]);
+   * x.pad([[1, 2]]).print();
+   * ```
+   * @param x The tensor to pad.
+   * @param paddings An array of length `R` (the rank of the tensor), where each
+   *     element is a length-2 tuple of ints `[padBefore, padAfter]`, specifying
+   *     how much to pad along each dimension of the tensor.
+   * @param constantValue The pad value to use. Defaults to 0.
+   */
+  @doc({heading: 'Tensors', subheading: 'Transformations'})
+  @operation
+  static randomShuffle<T extends Tensor>(x: T, seed: number = null): T {
+    if (x.rank === 0) {
+      return x.clone();
+    }
+    const grad = (dy: T) => {
+      return {x: () => ArrayOps.zerosLike(x)};
+    };
+    return ENV.engine.runKernel(
+               backend => backend.randomShuffle(x, seed), {x}, grad) as T;
+  }
+  //////
 
   /**
    * Returns a `Tensor` that has expanded rank, by inserting a dimension

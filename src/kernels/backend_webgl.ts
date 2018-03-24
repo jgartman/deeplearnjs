@@ -25,6 +25,7 @@ import {DataId, Tensor, Tensor1D, Tensor2D, Tensor3D, Tensor4D} from '../tensor'
 import * as types from '../types';
 import {DataType, DataTypeMap, RecursiveArray, TypedArray} from '../types';
 import * as util from '../util';
+
 import {KernelBackend} from './backend';
 import {ArgMinMaxProgram} from './webgl/argminmax_gpu';
 import {AvgPool2DBackpropProgram} from './webgl/avg_pool_backprop_gpu';
@@ -50,6 +51,7 @@ import {MultinomialProgram} from './webgl/multinomial_gpu';
 import {OneHotProgram} from './webgl/onehot_gpu';
 import {PadProgram} from './webgl/pad_gpu';
 import {Pool2DProgram} from './webgl/pool_gpu';
+import {RandomShuffleProgram} from './webgl/random_shuffle_gpu';
 import {ReduceProgram} from './webgl/reduce_gpu';
 import {ResizeBilinearProgram} from './webgl/resize_bilinear_gpu';
 import {ReverseProgram} from './webgl/reverse_gpu';
@@ -384,6 +386,11 @@ export class MathBackendWebGL implements KernelBackend {
   pad<T extends Tensor>(
       x: T, paddings: Array<[number, number]>, constantValue: number): T {
     const program = new PadProgram(x.shape, paddings, constantValue);
+    return this.compileAndRun(program, [x]);
+  }
+
+  randomShuffle<T extends Tensor>(x: T, seed: number): T {
+    const program = new RandomShuffleProgram(x.shape, seed);
     return this.compileAndRun(program, [x]);
   }
 

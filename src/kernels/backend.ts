@@ -163,6 +163,8 @@ export interface KernelBackend extends TensorStorage, BackendTimer {
   pad<T extends Tensor>(
       x: T, paddings: Array<[number, number]>, constantValue: number): T;
 
+  randomShuffle<T extends Tensor>(x: T, seed: number): T;
+
   transpose<T extends Tensor>(x: T, perm: number[]): T;
 
   gather<T extends Tensor>(x: T, indices: Tensor1D, axis: number): T;
