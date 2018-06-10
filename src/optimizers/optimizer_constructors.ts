@@ -21,6 +21,7 @@ import {AdadeltaOptimizer} from './adadelta_optimizer';
 import {AdagradOptimizer} from './adagrad_optimizer';
 import {AdamOptimizer} from './adam_optimizer';
 import {AdamaxOptimizer} from './adamax_optimizer';
+import {AMSgradOptimizer} from './amsgrad_optimizer';
 import {MomentumOptimizer} from './momentum_optimizer';
 import {RMSPropOptimizer} from './rmsprop_optimizer';
 import {SGDOptimizer} from './sgd_optimizer';
@@ -106,10 +107,9 @@ export class OptimizerConstructors {
   @doc({heading: 'Training', subheading: 'Optimizers', namespace: 'train'})
   static rmsprop(
       learningRate: number, decay = .9, momentum = 0.0, epsilon = 1e-8,
-      centered = false):
-      RMSPropOptimizer {
-    return new RMSPropOptimizer(learningRate, decay, momentum, epsilon,
-      centered);
+      centered = false): RMSPropOptimizer {
+    return new RMSPropOptimizer(
+        learningRate, decay, momentum, epsilon, centered);
   }
 
   /**
@@ -180,5 +180,22 @@ export class OptimizerConstructors {
   static adagrad(learningRate: number, initialAccumulatorValue = 0.1):
       AdagradOptimizer {
     return new AdagradOptimizer(learningRate, initialAccumulatorValue);
+  }
+
+  /**
+   * Constructs a `AMSGradOptimizer` that uses the AMSGrad algorithm.
+   * See [https://openreview.net/pdf?id=ryQu7f-RZ)
+   *
+   * @param learningRate The learning rate to use for the AMSGrad gradient
+   * descent algorithm.
+   * @param beta1 The exponential decay rate for the 1st moment estimates.
+   * @param beta2 The exponential decay rate for the 2nd moment estimates.
+   * @param epsilon A small constant for numerical stability.
+   */
+  @doc({heading: 'Training', subheading: 'Optimizers', namespace: 'train'})
+  static amsgrad(
+      learningRate = 0.001, beta1 = 0.9, beta2 = 0.999, epsilon = 1e-8):
+      AMSgradOptimizer {
+    return new AMSgradOptimizer(learningRate, beta1, beta2, epsilon);
   }
 }

@@ -20,6 +20,7 @@ import {AdadeltaOptimizer} from './optimizers/adadelta_optimizer';
 import {AdagradOptimizer} from './optimizers/adagrad_optimizer';
 import {AdamOptimizer} from './optimizers/adam_optimizer';
 import {AdamaxOptimizer} from './optimizers/adamax_optimizer';
+import {AMSgradOptimizer} from './optimizers/amsgrad_optimizer';
 import {MomentumOptimizer} from './optimizers/momentum_optimizer';
 import {OptimizerConstructors} from './optimizers/optimizer_constructors';
 import {RMSPropOptimizer} from './optimizers/rmsprop_optimizer';
@@ -27,7 +28,7 @@ import {SGDOptimizer} from './optimizers/sgd_optimizer';
 
 // tslint:disable-next-line:no-unused-expression
 [MomentumOptimizer, SGDOptimizer, AdadeltaOptimizer, AdagradOptimizer,
- RMSPropOptimizer, AdamaxOptimizer, AdamOptimizer];
+ RMSPropOptimizer, AdamaxOptimizer, AdamOptimizer, AMSgradOptimizer];
 
 export const train = {
   sgd: OptimizerConstructors.sgd,
@@ -36,5 +37,6 @@ export const train = {
   adagrad: OptimizerConstructors.adagrad,
   rmsprop: OptimizerConstructors.rmsprop,
   adamax: OptimizerConstructors.adamax,
-  adam: OptimizerConstructors.adam
+  adam: OptimizerConstructors.adam,
+  amsgrad: OptimizerConstructors.amsgrad
 };
