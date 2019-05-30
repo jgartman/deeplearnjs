@@ -702,6 +702,48 @@ function batchToSpaceND_<T extends Tensor>(
       backend => backend.batchToSpaceND($x, blockShape, crops), {$x}, grad);
 }
 
+function batchToSpaceND2_<T extends Tensor>(
+    x: T|TensorLike, blockShape: number[], crops: number[][]): T {
+  const $x = convertToTensor(x, 'x', 'batchToSpaceND');
+  const prod = blockShape.reduce((a, b) => a * b);
+
+  util.assert(
+      $x.rank >= 1 + blockShape.length,
+      () => `input rank is ${$x.rank} but should be > than blockShape.length ${
+          blockShape.length}`);
+
+  for (let i = 0; i < blockShape.length; i++) {
+    util.assert(blockShape[i] > 0, () => `blockShape must be positive`);
+  }
+
+  util.assert(
+      crops.length === blockShape.length,
+      () => `crops.length is ${
+          crops.length} but should be equal to blockShape.length  ${
+          blockShape.length}`);
+
+  for (let i = 0; i < crops.length; i++) {
+    util.assert(
+        crops[i].length === 2,
+        () => `Every eleement of crops must be of length 2`);
+    util.assert(
+        crops[i][0] >= 0 && crops[i][1] >= 0, () => `Crops cannot be negative`);
+  }
+
+  util.assert(
+      $x.shape[0] % prod === 0,
+      () => `input tensor batch is ${
+                $x.shape[0]} but is not divisible by the product of ` +
+          `the elements of blockShape ${blockShape.join(' * ')} === ${prod}`);
+
+  const grad = (dy: T) => {
+    return {$x: () => dy.spaceToBatchND(blockShape, crops)};
+  };
+
+  return ENGINE.runKernel(
+      backend => backend.batchToSpaceND2($x, blockShape, crops), {$x}, grad);
+}
+
 /**
  * This operation divides "spatial" dimensions `[1, ..., M]` of the input into
  * a grid of blocks of shape `blockShape`, and interleaves these blocks with
@@ -1085,6 +1127,7 @@ export {
 };
 
 export const batchToSpaceND = op({batchToSpaceND_});
+export const batchToSpaceND2 = op({batchToSpaceND2_});
 export const cast = op({cast_});
 export const clone = op({clone_});
 export const cumsum = op({cumsum_});

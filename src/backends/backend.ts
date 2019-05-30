@@ -497,6 +497,11 @@ export class KernelBackend implements TensorStorage, Backend, BackendTimer {
     throw new Error('Not yet implemented');
   }
 
+  batchToSpaceND2<T extends Tensor>(
+      x: T, blockShape: number[], crops: number[][]): T {
+    throw new Error('Not yet implemented');
+  }
+
   spaceToBatchND<T extends Tensor>(
       x: T, blockShape: number[], paddings: number[][]): T {
     throw new Error('Not yet implemented');

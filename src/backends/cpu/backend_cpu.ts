@@ -2166,6 +2166,192 @@ export class MathBackendCPU implements KernelBackend {
                .slice(sliceBeginCoords, sliceSize) as T;
   }
 
+  batchToSpaceND2<T extends Tensor>(
+      x: T, blockShape: number[], crops: number[][]): T {
+    let removedPrefixBlockDims = 0;
+    for (; removedPrefixBlockDims < blockShape.length;
+         ++removedPrefixBlockDims) {
+      const dim = removedPrefixBlockDims;
+      if (crops[dim][0] !== 0 || crops[dim][1] !== 0 || blockShape[dim] !== 1) {
+        break;
+      }
+    }
+
+    let removedSuffixBlockDims = 0;
+    for (; removedSuffixBlockDims < blockShape.length - removedPrefixBlockDims;
+         ++removedSuffixBlockDims) {
+      const dim = blockShape.length - 1 - removedSuffixBlockDims;
+      if (crops[dim][0] !== 0 || crops[dim][1] !== 0 || blockShape[dim] !== 1) {
+        break;
+      }
+    }
+
+    const internalBlockDims =
+        blockShape.length - removedPrefixBlockDims - removedSuffixBlockDims;
+
+    if (internalBlockDims === 0) {
+      return x;
+    }
+
+    const prod = blockShape.reduce((a, b) => a * b);
+    const internalInputShape = [];
+    const internalOutputShape = [];
+    const externalOutputShape = [x.shape[0] / prod];
+
+    let inputBatchSize = x.shape[0];
+    for (let blockDim = 0; blockDim < removedPrefixBlockDims; ++blockDim) {
+      const size = x.shape[blockDim + 1];
+      inputBatchSize *= size;
+      externalOutputShape.push(size);
+    }
+
+    internalInputShape.push(inputBatchSize);
+    internalOutputShape.push(inputBatchSize / prod);
+
+    for (let blockDim = removedPrefixBlockDims;
+         blockDim < blockShape.length - removedSuffixBlockDims; ++blockDim) {
+      const cropStart = crops[blockDim][0];
+      const cropEnd = crops[blockDim][1];
+
+      const inputSize = x.shape[blockDim + 1];
+      const blockShapeValue = blockShape[blockDim];
+      const croppedSize = inputSize * blockShapeValue - cropStart - cropEnd;
+
+      internalInputShape.push(inputSize);
+      internalOutputShape.push(croppedSize);
+      externalOutputShape.push(croppedSize);
+    }
+
+    let depth = 1;
+    for (let dim = blockShape.length - removedSuffixBlockDims + 1; dim < x.rank;
+         ++dim) {
+      const size = x.shape[dim];
+      externalOutputShape.push(size);
+      depth *= size;
+    }
+    internalInputShape.push(depth);
+    internalOutputShape.push(depth);
+
+    const internalCrops = crops.slice(removedPrefixBlockDims);
+    const internalBlockShape = blockShape.slice(removedPrefixBlockDims);
+
+    return this.batchToSpaceFunctor(
+        x, internalBlockShape, internalCrops, internalOutputShape,
+        internalBlockDims, externalOutputShape, internalInputShape);
+  }
+
+  batchToSpaceFunctor<T extends Tensor>(
+      batchTensor: T, blockShapeTensor: number[], paddings: number[][],
+      spaceTensorShape: number[], numBlockDims: number, outputShape: number[],
+      internalInputShape: number[]): T {
+    const batchTensorBatch = batchTensor.shape[0];
+    const spaceTensorBatch = spaceTensorShape[0];
+
+    const padStart = new Int32Array(numBlockDims);
+    const blockShape = new Int32Array(numBlockDims);
+    const spaceTensorShapeTwo = new Int32Array(numBlockDims);
+    const batchTensorShape = new Int32Array(numBlockDims);
+
+    for (let blockDim = 0; blockDim < numBlockDims; ++blockDim) {
+      padStart[blockDim] = paddings[blockDim][0];
+      blockShape[blockDim] = blockShapeTensor[blockDim];
+      spaceTensorShapeTwo[blockDim] = spaceTensorShape[blockDim + 1];
+      batchTensorShape[blockDim] = batchTensor.shape[blockDim + 1];
+    }
+
+    const spaceTensorStrides = new Int32Array(numBlockDims + 2);
+    const batchTensorStrides = new Int32Array(numBlockDims + 2);
+    spaceTensorStrides[numBlockDims + 1] = 1;
+    batchTensorStrides[numBlockDims + 1] = 1;
+
+    for (let dim = numBlockDims; dim >= 0; --dim) {
+      spaceTensorStrides[dim] =
+          spaceTensorStrides[dim + 1] * spaceTensorShape[dim + 1];
+      batchTensorStrides[dim] =
+          batchTensorStrides[dim + 1] * internalInputShape[dim + 1];
+    }
+
+    const batchTensorValues = batchTensor.dataSync();
+    const spaceTensorValues =
+        new Float32Array(util.sizeFromShape(spaceTensorShape));
+
+    for (let batchTensorB = 0; batchTensorB < batchTensorBatch;
+         batchTensorB++) {
+      const spaceTensorB = batchTensorB % spaceTensorBatch;
+      let blockIndex = batchTensorB / spaceTensorBatch;
+      const blockOffsets = new Int32Array(numBlockDims);
+      for (let blockDim = numBlockDims - 1; blockDim >= 0; --blockDim) {
+        blockOffsets[blockDim] =
+            blockDim > 0 ? blockIndex % blockShape[blockDim] : blockIndex;
+        blockIndex /= blockShape[blockDim];
+      }
+      this.spaceToBatchHelper(
+          spaceTensorValues.subarray(spaceTensorB * spaceTensorStrides[0]),
+          spaceTensorShapeTwo, spaceTensorStrides.subarray(1), blockShape,
+          padStart, blockOffsets, batchTensorShape,
+          batchTensorStrides.subarray(1),
+          batchTensorValues.subarray(batchTensorB * batchTensorStrides[0]),
+          numBlockDims);
+    }
+    return ops.tensor(spaceTensorValues, outputShape) as T;
+  }
+
+  getBatchTensorIdxFromSpaceTensorIdx(spaceTensorIdx: number) {
+    // struct S2BParameters {
+    //   int32 space_tensor_batch;
+    //   int32 batch_tensor_shape[NUM_BLOCK_DIMS + 2];
+    //   int32 space_tensor_spatial_shape[NUM_BLOCK_DIMS];
+    //   int32 pad_start[NUM_BLOCK_DIMS];
+    //   int32 block_shape[NUM_BLOCK_DIMS];
+    // };
+  }
+
+  spaceToBatchHelper(
+      spaceTensorPtr: Float32Array, spaceTensorShape: Int32Array,
+      spaceTensorStrides: Int32Array, blockShape: Int32Array,
+      padStart: Int32Array, blockOffsets: Int32Array,
+      batchTensorShape: Int32Array,
+      batchTensorStrides: Int32Array|Float32Array|Uint8Array,
+      batchTensorPtr: Int32Array|Float32Array|Uint8Array,
+      numBlockDims: number) {
+    for (let batchTensorPos = 0; batchTensorPos < batchTensorShape[0];
+         ++batchTensorPos) {
+      const spaceTensorPos =
+          batchTensorPos * blockShape[0] + blockOffsets[0] - padStart[0];
+      if (spaceTensorPos >= 0 && spaceTensorPos < spaceTensorShape[0]) {
+        if (numBlockDims === 1) {
+          this.spaceToBatchHelperBase(
+              spaceTensorPtr.subarray(spaceTensorPos * spaceTensorStrides[0]),
+              spaceTensorShape.subarray(1), spaceTensorStrides.subarray(1),
+              blockShape.subarray(1), padStart.subarray(1),
+              blockOffsets.subarray(1), batchTensorShape.subarray(1),
+              batchTensorStrides[0], batchTensorPtr);
+        } else {
+          this.spaceToBatchHelper(
+              spaceTensorPtr.subarray(spaceTensorPos * spaceTensorStrides[0]),
+              spaceTensorShape.subarray(1), spaceTensorStrides.subarray(1),
+              blockShape.subarray(1), padStart.subarray(1),
+              blockOffsets.subarray(1), batchTensorShape.subarray(1),
+              batchTensorStrides.subarray(1), batchTensorPtr, numBlockDims - 1);
+        }
+      }
+      batchTensorPtr = batchTensorPtr.subarray(batchTensorStrides[0]);
+    }
+  }
+
+  spaceToBatchHelperBase(
+      spaceTensorPtr: Float32Array, spaceTensorShape: Int32Array,
+      spaceTensorStrides: Int32Array, blockShape: Int32Array,
+      padStart: Int32Array, blockOffsets: Int32Array,
+      batchTensorShape: Int32Array,
+      /*batchTensorStrides: Int32Array|Float32Array|Uint8Array*/
+      batchTensorStrides: number,
+      batchTensorPtr: Int32Array|Float32Array|Uint8Array) {
+    for (let i = 0; i < batchTensorStrides; ++i) {
+      spaceTensorPtr[i] = batchTensorPtr[i];
+    }
+  }
+
   spaceToBatchND<T extends Tensor>(
       x: T, blockShape: number[], paddings: Array<[number, number]>): T {
     this.assertNotComplex([x], 'spaceToBatchND');

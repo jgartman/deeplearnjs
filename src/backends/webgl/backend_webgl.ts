@@ -52,6 +52,7 @@ import {AddNPackedProgram} from './addn_packed_gpu';
 import {ArgMinMaxProgram} from './argminmax_gpu';
 import {ArgMinMaxPackedProgram} from './argminmax_packed_gpu';
 import {AvgPool2DBackpropProgram} from './avg_pool_backprop_gpu';
+import {BatchToSpaceNDProgram} from './batch_to_space_nd_gpu';
 import {BatchNormProgram} from './batchnorm_gpu';
 import {BatchNormPackedProgram} from './batchnorm_packed_gpu';
 import * as binaryop_complex_gpu from './binaryop_complex_gpu';
@@ -1013,6 +1014,58 @@ export class MathBackendWebGL implements KernelBackend {
                .transpose(permuted)
                .reshape(reshapedPermuted)
                .slice(sliceBeginCoords, sliceSize) as T;
+  }
+
+  batchToSpaceND2<T extends Tensor>(
+      x: T, blockShape: number[], crops: number[][]): T {
+    const blockDims = blockShape.length;
+    if (blockDims === 0) {
+      return x;
+    }
+
+    const prod = blockShape.reduce((a, b) => a * b);
+    const outputShape = [x.shape[0] / prod];
+
+    for (let blockDim = 0; blockDim < blockShape.length; ++blockDim) {
+      const cropStart = crops[blockDim][0];
+      const cropEnd = crops[blockDim][1];
+
+      const inputSize = x.shape[blockDim + 1];
+      const blockShapeValue = blockShape[blockDim];
+      const croppedSize = inputSize * blockShapeValue - cropStart - cropEnd;
+      outputShape.push(croppedSize);
+    }
+
+    let depth = 1;
+    for (let dim = blockShape.length + 1; dim < x.rank; ++dim) {
+      const size = x.shape[dim];
+      depth *= size;
+    }
+    outputShape.push(depth);
+
+    return this.batchToSpaceFunctor(
+        x,
+        blockShape,
+        crops,
+        outputShape,
+        blockDims,
+    );
+  }
+
+  batchToSpaceFunctor<T extends Tensor>(
+      batchTensor: T, blockShapeTensor: number[], crops: number[][],
+      spaceTensorShape: number[], numBlockDims: number): T {
+    // const program = ENV.get('WEBGL_PACK_ARRAY_OPERATIONS') ?
+    //     new BatchToSpaceNDPackedProgram(
+    //         blockShapeTensor, batchTensor.strides, batchTensor.shape, crops,
+    //         numBlockDims, spaceTensorShape) :
+    //     new BatchToSpaceNDProgram(
+    //         blockShapeTensor, batchTensor.strides, batchTensor.shape, crops,
+    //         numBlockDims, spaceTensorShape);
+    const program = new BatchToSpaceNDProgram(
+        blockShapeTensor, batchTensor.strides, batchTensor.shape, crops,
+        numBlockDims, spaceTensorShape);
+    return this.compileAndRun(program, [batchTensor]);
   }
 
   spaceToBatchND<T extends Tensor>(

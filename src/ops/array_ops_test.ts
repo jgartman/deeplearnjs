@@ -16,7 +16,7 @@
  */
 
 import * as tf from '../index';
-import {ALL_ENVS, BROWSER_ENVS, describeWithFlags, NODE_ENVS} from '../jasmine_util';
+import {ALL_ENVS, BROWSER_ENVS, describeWithFlags, NODE_ENVS, SYNC_BACKEND_ENVS} from '../jasmine_util';
 import {expectArraysClose, expectArraysEqual, expectPromiseToFail, expectValuesInRange} from '../test_util';
 import {TypedArray} from '../types';
 import * as util from '../util';
@@ -3823,6 +3823,165 @@ describeWithFlags('batchToSpaceND', ALL_ENVS, () => {
            await gradient.data(),
            [1, 3, 9, 11, 2, 4, 10, 12, 5, 7, 13, 15, 6, 8, 14, 16]);
      });
+});
+
+describeWithFlags('batchToSpaceND2', BROWSER_ENVS, () => {
+  // it('tensor4d, input shape=[9, 1, 1, 2], blockShape=[3, 3]', () => {
+  //   const t = tf.tensor4d(
+  //       [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
+  //       [9, 1, 1, 2]);
+  //   const blockShape = [3, 3];
+  //   const crops = [[0, 0], [0, 0]];
+
+  //   const res = tf.batchToSpaceND2(t, blockShape, crops);
+  //   expect(res.shape).toEqual([1, 3, 3, 2]);
+  //   expectArraysClose(
+  //       res, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
+  //       18]);
+  // });
+
+  // it('tensor4d, input shape=[4, 1, 1, 1], blockShape=[2, 2]', () => {
+  //   const t = tf.tensor4d([1, 2, 3, 4], [4, 1, 1, 1]);
+  //   const blockShape = [2, 2];
+  //   const crops = [[0, 0], [0, 0]];
+
+  //   const res = tf.batchToSpaceND2(t, blockShape, crops);
+  //   expect(res.shape).toEqual([1, 2, 2, 1]);
+  //   expectArraysClose(res, [1, 2, 3, 4]);
+  // });
+
+  // it('tensor4d, input shape=[4, 1, 1, 3], blockShape=[2, 2]', () => {
+  //   const t =
+  //       tf.tensor4d([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], [4, 1, 1, 3]);
+  //   const blockShape = [2, 2];
+  //   const crops = [[0, 0], [0, 0]];
+
+  //   const res = tf.batchToSpaceND2(t, blockShape, crops);
+  //   expect(res.shape).toEqual([1, 2, 2, 3]);
+  //   expectArraysClose(res, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+  // });
+
+  // it('tensor4d, input shape=[4, 2, 2, 1], blockShape=[2, 2]', () => {
+  //   const t = tf.tensor4d(
+  //       [1, 3, 9, 11, 2, 4, 10, 12, 5, 7, 13, 15, 6, 8, 14, 16], [4, 2, 2,
+  //       1]);
+  //   const blockShape = [2, 2];
+  //   const crops = [[0, 0], [0, 0]];
+
+  //   const res = tf.batchToSpaceND2(t, blockShape, crops);
+  //   expect(res.shape).toEqual([1, 4, 4, 1]);
+  //   expectArraysClose(
+  //       res, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+  // });
+
+  // it('tensor3d, blockShape [2]', () => {
+  //   const t = tf.tensor(
+  //       [
+  //         -61, 37,  -68, 72,  31,  62, 0,   -13, 28,  54, 96,
+  //         44,  -55, -64, -88, -94, 65, -32, -96, -73, -2, -77,
+  //         -14, 47,  33,  15,  70,  20, 75,  28,  84,  -13
+  //       ],
+  //       [8, 2, 2]);
+  //   const blockShape = [2, 2];
+  //   const crops = [[2, 0], [2, 0]];
+
+  //   const res = tf.batchToSpaceND2(t, blockShape, crops);
+  //   expect(res.shape).toEqual([2, 2, 2]);
+  //   expectArraysClose(res, [72, 44, -73, 20, -13, -94, 47, -13]);
+  // });
+
+  it('tensor4d, input shape=[8, 1, 3, 1], blockShape=[2, 2]', () => {
+    const t = tf.tensor4d(
+        [
+          0, 1, 3, 0, 9,  11, 0, 2, 4, 0, 10, 12,
+          0, 5, 7, 0, 13, 15, 0, 6, 8, 0, 14, 16
+        ],
+        [8, 1, 3, 1]);
+    const blockShape = [2, 2];
+    const crops = [[0, 0], [1, 0]];
+
+    const res = tf.batchToSpaceND2(t, blockShape, crops);
+    res.print();
+    expect(res.shape).toEqual([2, 2, 5, 1]);
+    expectArraysClose(
+        res.dataSync(),
+        [0, 1, 2, 3, 4, 0, 5, 6, 7, 8, 0, 9, 10, 11, 12, 0, 13, 14, 15, 16]);
+  });
+});
+
+describeWithFlags('batchToSpaceND2', SYNC_BACKEND_ENVS, () => {
+  it('tensor4d, input shape=[4, 1, 1, 1], blockShape=[2, 2]', () => {
+    const t = tf.tensor4d([1, 2, 3, 4], [4, 1, 1, 1]);
+    const blockShape = [2, 2];
+    const crops = [[0, 0], [0, 0]];
+
+    const res = tf.batchToSpaceND2(t, blockShape, crops);
+    expect(res.shape).toEqual([1, 2, 2, 1]);
+    expectArraysClose(res.dataSync(), [1, 2, 3, 4]);
+  });
+
+  it('tensor4d, input shape=[4, 1, 1, 3], blockShape=[2, 2]', async () => {
+    const t =
+        tf.tensor4d([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], [4, 1, 1, 3]);
+    const blockShape = [2, 2];
+    const crops = [[0, 0], [0, 0]];
+
+    const res = tf.batchToSpaceND2(t, blockShape, crops);
+    expect(res.shape).toEqual([1, 2, 2, 3]);
+    expectArraysClose(
+        await res.data(), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+  });
+
+  it('tensor4d, input shape=[8, 1, 3, 1], blockShape=[2, 2]', async () => {
+    const t = tf.tensor4d(
+        [
+          0, 1, 3, 0, 9,  11, 0, 2, 4, 0, 10, 12,
+          0, 5, 7, 0, 13, 15, 0, 6, 8, 0, 14, 16
+        ],
+        [8, 1, 3, 1]);
+    const blockShape = [2, 2];
+    const crops = [[0, 0], [2, 0]];
+
+    const res = tf.batchToSpaceND2(t, blockShape, crops);
+    expect(res.shape).toEqual([2, 2, 4, 1]);
+    expectArraysClose(
+        await res.data(),
+        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+  });
+
+  it('tensor3d, blockShape [2]', async () => {
+    const t = tf.tensor(
+        [
+          -61, 37,  -68, 72,  31,  62, 0,   -13, 28,  54, 96,
+          44,  -55, -64, -88, -94, 65, -32, -96, -73, -2, -77,
+          -14, 47,  33,  15,  70,  20, 75,  28,  84,  -13
+        ],
+        [8, 2, 2]);
+    const blockShape = [2, 2];
+    const crops = [[2, 0], [2, 0]];
+
+    const res = tf.batchToSpaceND2(t, blockShape, crops);
+    expect(res.shape).toEqual([2, 2, 2]);
+    expectArraysClose(await res.data(), [72, 44, -73, 20, -13, -94, 47, -13]);
+  });
+
+  it('tensor3d,  blockSHape [1]', () => {
+    const t = tf.tensor(
+        [
+          -61, 37,  -68, 72,  31,  62, 0,   -13, 28,  54, 96,
+          44,  -55, -64, -88, -94, 65, -32, -96, -73, -2, -77,
+          -14, 47,  33,  15,  70,  20, 75,  28,  84,  -13
+        ],
+        [8, 2, 2]);
+    const blockShape = [2];
+    const crops = [[0, 2]];
+
+    const res = tf.batchToSpaceND2(t, blockShape, crops);
+    expect(res.shape).toEqual([4, 2, 2]);
+    expectArraysClose(
+        res.dataSync(),
+        [-61, 37, 65, -32, 31, 62, -2, -77, 28, 54, 33, 15, -55, -64, 75, 28]);
+  });
 });
 
 describeWithFlags('spaceToBatchND', ALL_ENVS, () => {
